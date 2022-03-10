@@ -22,12 +22,17 @@
 #define MOUNT_MSG_CMD_STOP 5
 #define MOUNT_MSG_CMD_GOTO 6
 #define MOUNT_MSG_CMD_GET_CPR 7
+#define MOUNT_MSG_CMD_GET_STATUS 8
 
 #define MOUNT_ERR_CODE_INTERNAL 1
 #define MOUNT_ERR_CODE_INVALID_MSG 2
 #define MOUNT_ERR_CODE_UNKNOWN_CMD 3
-typedef int cmd_t;
 
+#define MOUNT_STATUS_CODE_STOPPED 0
+#define MOUNT_STATUS_CODE_MOVING 1
+
+typedef int cmd_t;
+typedef int mount_status_t;
 typedef struct MountMsg_SetPos {
     step_t ax1;
     step_t ax2;
@@ -103,4 +108,10 @@ void comm_sendStopResponse(bool instant);
  */
 void comm_sendCprResponse(step_t ax1, step_t ax2);
 
+/**
+ * @brief Sends a response to the status request command
+ * 
+ * @param status Status of the mount (one of MOUNT_STATUS_CODE_* constants)
+ */
+void comm_sendStatusResponse(mount_status_t status);
 #endif

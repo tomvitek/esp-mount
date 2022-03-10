@@ -52,6 +52,10 @@ void comm_task() {
             ESP_LOGI(TAG, "Received cpr request");
             comm_sendCprResponse(CPR_AX1, CPR_AX2);
         }
+        else if (msg.cmd == MOUNT_MSG_CMD_GET_STATUS) {
+            ESP_LOGI(TAG, "Received status request");
+            comm_sendStatusResponse(MOUNT_STATUS_CODE_STOPPED);
+        }
         else if (msg.cmd == MOUNT_MSG_CMD_ERR_INVALID_CMD) {
             comm_sendError(MOUNT_ERR_CODE_INVALID_MSG, "Invalid command received");
         }

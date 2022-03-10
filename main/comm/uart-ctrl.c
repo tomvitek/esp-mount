@@ -15,7 +15,7 @@
 #define CMD_STR_GOTO "g"
 #define CMD_STR_STOP "s"
 #define CMD_STR_GET_CPR "gc"
-
+#define CMD_STR_GET_STATUS "gs"
 #define UART_TIMEOUT_MS 10
 
 /**
@@ -275,6 +275,14 @@ MountMsg parseStopMsg(bool *endFlag) {
     return msg;
 }
 
+MountMsg returnWithEFCheck(MountMsg mainMsg, bool *endFlag) {
+    if (! *endFlag) {
+        receive_end();
+        return makeMountMsg(MOUNT_MSG_CMD_ERR_INVALID_CMD);
+    }
+    return mainMsg;
+}
+
 MountMsg comm_getNext() {
     size_t available = 0;
     uart_get_buffered_data_len(COMM_UART_PORT, &available);
@@ -299,25 +307,16 @@ MountMsg comm_getNext() {
             return parseSetPosCmd(&endFlag);
         }
         else if (strcmp(cmdBuffer, CMD_STR_GET_POS) == 0) {
-            if (!endFlag){
-                receive_end();
-                return makeMountMsg(MOUNT_MSG_CMD_ERR_INVALID_CMD);
-            }
-            return makeMountMsg(MOUNT_MSG_CMD_GET_POS);
+            return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_GET_POS), &endFlag);
         }
         else if (strcmp(cmdBuffer, CMD_STR_GET_TIME) == 0) {
-            if (!endFlag){
-                receive_end();
-                return makeMountMsg(MOUNT_MSG_CMD_ERR_INVALID_CMD);
-            }
-            return makeMountMsg(MOUNT_MSG_CMD_GET_TIME);
+            return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_GET_TIME), &endFlag);
         }
         else if (strcmp(cmdBuffer, CMD_STR_GET_CPR) == 0) {
-            if (!endFlag) {
-                receive_end();
-                return makeMountMsg(MOUNT_MSG_CMD_ERR_INVALID_CMD);
-            }
-            return makeMountMsg(MOUNT_MSG_CMD_GET_CPR);
+            return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_GET_CPR), &endFlag);
+        }
+        else if (strcmp(cmdBuffer, CMD_STR_GET_STATUS) == 0) {
+            return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_GET_STATUS), &endFlag);
         }
         else if (strcmp(cmdBuffer, CMD_STR_GOTO) == 0) {
             return parseGotoMsg(&endFlag);
@@ -379,5 +378,11 @@ void comm_sendStopResponse(bool instant) {
 void comm_sendCprResponse(step_t ax1, step_t ax2) {
     char msg[40];
     snprintf(msg, sizeof(msg), "+gc %lli %lli\n", ax1, ax2);
+    uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
+}
+
+void comm_sendStatusResponse(mount_status_t status) {
+    char msg[20];
+    snprintf(msg, sizeof(msg), "+gs %i\n", status);
     uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
 }
