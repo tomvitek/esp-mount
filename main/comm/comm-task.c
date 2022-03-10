@@ -56,6 +56,10 @@ void comm_task() {
             ESP_LOGI(TAG, "Received status request");
             comm_sendStatusResponse(MOUNT_STATUS_CODE_STOPPED);
         }
+        else if (msg.cmd == MOUNT_MSG_CMD_GET_PROTOCOL_VERSION) {
+            ESP_LOGI(TAG, "Requested protocol version");
+            comm_sendProtocolVersionResponse();
+        }
         else if (msg.cmd == MOUNT_MSG_CMD_ERR_INVALID_CMD) {
             comm_sendError(MOUNT_ERR_CODE_INVALID_MSG, "Invalid command received");
         }

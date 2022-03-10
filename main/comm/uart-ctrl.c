@@ -16,6 +16,7 @@
 #define CMD_STR_STOP "s"
 #define CMD_STR_GET_CPR "gc"
 #define CMD_STR_GET_STATUS "gs"
+#define CMD_STR_GET_PROTOCOL_VERSION "gpv"
 #define UART_TIMEOUT_MS 10
 
 /**
@@ -318,6 +319,9 @@ MountMsg comm_getNext() {
         else if (strcmp(cmdBuffer, CMD_STR_GET_STATUS) == 0) {
             return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_GET_STATUS), &endFlag);
         }
+        else if (strcmp(cmdBuffer, CMD_STR_GET_PROTOCOL_VERSION) == 0) {
+            return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_GET_PROTOCOL_VERSION), &endFlag);
+        }
         else if (strcmp(cmdBuffer, CMD_STR_GOTO) == 0) {
             return parseGotoMsg(&endFlag);
         }
@@ -384,5 +388,11 @@ void comm_sendCprResponse(step_t ax1, step_t ax2) {
 void comm_sendStatusResponse(mount_status_t status) {
     char msg[20];
     snprintf(msg, sizeof(msg), "+gs %i\n", status);
+    uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
+}
+
+void comm_sendProtocolVersionResponse() {
+    char msg[20];
+    snprintf(msg, sizeof(msg), "+gpv %i\n", UART_CTRL_PROTOCOL_VERSION);
     uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
 }

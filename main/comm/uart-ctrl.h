@@ -23,6 +23,7 @@
 #define MOUNT_MSG_CMD_GOTO 6
 #define MOUNT_MSG_CMD_GET_CPR 7
 #define MOUNT_MSG_CMD_GET_STATUS 8
+#define MOUNT_MSG_CMD_GET_PROTOCOL_VERSION 9
 
 #define MOUNT_ERR_CODE_INTERNAL 1
 #define MOUNT_ERR_CODE_INVALID_MSG 2
@@ -30,6 +31,8 @@
 
 #define MOUNT_STATUS_CODE_STOPPED 0
 #define MOUNT_STATUS_CODE_MOVING 1
+
+#define UART_CTRL_PROTOCOL_VERSION 0
 
 typedef int cmd_t;
 typedef int mount_status_t;
@@ -114,4 +117,10 @@ void comm_sendCprResponse(step_t ax1, step_t ax2);
  * @param status Status of the mount (one of MOUNT_STATUS_CODE_* constants)
  */
 void comm_sendStatusResponse(mount_status_t status);
+
+/**
+ * @brief Sends a response to the protocol version request command
+ * 
+ */
+void comm_sendProtocolVersionResponse();
 #endif
