@@ -1,0 +1,12 @@
+{
+  "C_Cpp.intelliSenseEngine": "Tag Parser",
+  "idf.port": "/dev/ttyUSB0",
+  "cmake.sourceDirectory": "${workspaceFolder}/.",
+  "idf.adapterTargetName": "esp32",
+  "files.associations": {
+    "**/templates/*.html": "django-html, html",
+    "**/templates/*": "django-txt",
+    "**/requirements{/**,*}.{txt,in}": "pip-requirements",
+    "esp_log.h": "c"
+  }
+}
