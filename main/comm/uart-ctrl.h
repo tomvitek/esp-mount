@@ -3,6 +3,7 @@
 
 #include <driver/uart.h>
 #include <driver/gpio.h>
+#include "../config.h"
 
 #define COMM_UART_PORT UART_NUM_2
 #define COMM_BAUD_RATE 115200
@@ -20,6 +21,7 @@
 #define MOUNT_MSG_CMD_GET_TIME 4
 #define MOUNT_MSG_CMD_STOP 5
 #define MOUNT_MSG_CMD_GOTO 6
+#define MOUNT_MSG_CMD_GET_CPR 7
 
 #define MOUNT_ERR_CODE_INTERNAL 1
 #define MOUNT_ERR_CODE_INVALID_MSG 2
@@ -27,13 +29,13 @@
 typedef int cmd_t;
 
 typedef struct MountMsg_SetPos {
-    int32_t ax1;
-    int32_t ax2;
+    step_t ax1;
+    step_t ax2;
 } MountMsg_SetPos;
 
 typedef struct MountMsg_Goto {
-    int32_t ax1;
-    int32_t ax2;
+    step_t ax1;
+    step_t ax2;
     uint64_t time;
     bool timeIncluded;
 } MountMsg_Goto;
@@ -83,9 +85,9 @@ void comm_sendError(int errCode, const char* msg);
  * @param currentTime Current mount time, in milliseconds.
  */
 void comm_sendTimeResponse(uint64_t currentTime);
-void comm_sendSetPosResponse(int32_t ax1, int32_t ax2);
-void comm_sendGetPosResponse(int32_t ax1, int32_t ax2);
-void comm_sendGotoResponse(int32_t ax1, int32_t ax2, uint64_t *time);
+void comm_sendSetPosResponse(step_t ax1, step_t ax2);
+void comm_sendGetPosResponse(step_t ax1, step_t ax2);
+void comm_sendGotoResponse(step_t ax1, step_t ax2, uint64_t *time);
 
 /**
  * @brief Sends a response to the stop command
@@ -93,5 +95,12 @@ void comm_sendGotoResponse(int32_t ax1, int32_t ax2, uint64_t *time);
  * @param instant True if the stop was instant
  */
 void comm_sendStopResponse(bool instant);
+/**
+ * @brief Sends a response to the cpr request command
+ * 
+ * @param ax1 The first axis CPR
+ * @param ax2 The second axis CPR
+ */
+void comm_sendCprResponse(step_t ax1, step_t ax2);
 
 #endif

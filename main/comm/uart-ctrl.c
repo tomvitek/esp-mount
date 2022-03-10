@@ -14,6 +14,7 @@
 #define CMD_STR_GET_TIME "gt"
 #define CMD_STR_GOTO "g"
 #define CMD_STR_STOP "s"
+#define CMD_STR_GET_CPR "gc"
 
 #define UART_TIMEOUT_MS 10
 
@@ -126,15 +127,15 @@ bool receive_uint64(uint64_t *result, bool *endFlag) {
     return true;
 }
 
-bool receive_int32(int32_t* result, bool *endFlag) {
+bool receive_int64(int64_t* result, bool *endFlag) {
     char intStr[20];
 
     size_t intStrLen = receive_space_block(intStr, sizeof(intStr), endFlag);
 
     if (intStrLen == 0)
         return false;
-    
-    *result = strtol(intStr, NULL, 10);
+
+    *result = strtoll(intStr, NULL, 10);
     return true;
 }
 
@@ -194,9 +195,9 @@ MountMsg parseTimeSyncCmd(bool *endFlag) {
 }
 
 MountMsg parseSetPosCmd(bool *endFlag) {
-    int32_t posRa, posDec;
-    bool success = receive_int32(&posRa, endFlag);
-    success &= receive_int32(&posDec, endFlag);
+    step_t posRa, posDec;
+    bool success = receive_int64(&posRa, endFlag);
+    success &= receive_int64(&posDec, endFlag);
 
     success &= endFlag || receive_end();
 
@@ -221,9 +222,9 @@ MountMsg parseSetPosCmd(bool *endFlag) {
 }
 
 MountMsg parseGotoMsg(bool *endFlag) {
-    int32_t posRa, posDec;
-    bool success = receive_int32(&posRa, endFlag);
-    success &= receive_int32(&posDec, endFlag);
+    step_t posRa, posDec;
+    bool success = receive_int64(&posRa, endFlag);
+    success &= receive_int64(&posDec, endFlag);
     
     uint64_t time;
     bool timeIncluded = !*endFlag;
@@ -311,6 +312,13 @@ MountMsg comm_getNext() {
             }
             return makeMountMsg(MOUNT_MSG_CMD_GET_TIME);
         }
+        else if (strcmp(cmdBuffer, CMD_STR_GET_CPR) == 0) {
+            if (!endFlag) {
+                receive_end();
+                return makeMountMsg(MOUNT_MSG_CMD_ERR_INVALID_CMD);
+            }
+            return makeMountMsg(MOUNT_MSG_CMD_GET_CPR);
+        }
         else if (strcmp(cmdBuffer, CMD_STR_GOTO) == 0) {
             return parseGotoMsg(&endFlag);
         }
@@ -334,13 +342,13 @@ void comm_sendTimeResponse(uint64_t currentTime) {
     uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
 }
 
-void comm_sendSetPosResponse(int32_t posAx1, int32_t posAx2) {
+void comm_sendSetPosResponse(step_t posAx1, step_t posAx2) {
     char msg[30];
-    snprintf(msg, sizeof(msg), "+p %i %i\n", posAx1, posAx2);
+    snprintf(msg, sizeof(msg), "+p %lli %lli\n", posAx1, posAx2);
     uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
 }
 
-void comm_sendGetPosResponse(int32_t ax1, int32_t ax2) {
+void comm_sendGetPosResponse(step_t ax1, step_t ax2) {
     comm_sendSetPosResponse(ax1, ax2);
 }
 
@@ -350,13 +358,13 @@ void comm_sendError(int errCode, const char* msg) {
     uart_write_bytes(COMM_UART_PORT, msgBuffer, strlen(msgBuffer));
 }
 
-void comm_sendGotoResponse(int32_t ax1, int32_t ax2, uint64_t *time) {
+void comm_sendGotoResponse(step_t ax1, step_t ax2, uint64_t *time) {
     char msg[60];
     if (time == NULL) {
-        snprintf(msg, sizeof(msg), "+g %i %i\n", ax1, ax2);
+        snprintf(msg, sizeof(msg), "+g %lli %lli\n", ax1, ax2);
     }
     else {
-        snprintf(msg, sizeof(msg), "+g %i %i %llu\n", ax1, ax2, *time);
+        snprintf(msg, sizeof(msg), "+g %lli %lli %llu\n", ax1, ax2, *time);
     }
 
     uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
@@ -365,5 +373,11 @@ void comm_sendGotoResponse(int32_t ax1, int32_t ax2, uint64_t *time) {
 void comm_sendStopResponse(bool instant) {
     char msg[20];
     snprintf(msg, sizeof(msg), "+s %hhi\n", instant);
+    uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
+}
+
+void comm_sendCprResponse(step_t ax1, step_t ax2) {
+    char msg[40];
+    snprintf(msg, sizeof(msg), "+gc %lli %lli\n", ax1, ax2);
     uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
 }

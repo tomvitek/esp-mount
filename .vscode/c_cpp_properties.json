@@ -20,7 +20,7 @@
                     "${config:idf.espAdfPathWin}/components/**",
                     "${workspaceFolder}"
                 ],
-                "limitSymbolsToIncludedHeaders": false
+                "limitSymbolsToIncludedHeaders": true
             }
         }
     ],

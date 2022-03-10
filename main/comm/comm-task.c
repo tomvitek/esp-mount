@@ -4,7 +4,7 @@
 #include "../settings.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
+#include "../config.h"
 #define TAG "comm-task"
 
 void comm_task() {
@@ -26,7 +26,7 @@ void comm_task() {
         else if (msg.cmd == MOUNT_MSG_CMD_SET_POS) {
             MountMsg_SetPos pos = msg.data.setPos;
             mount_setPos(pos.ax1, pos.ax2);
-            ESP_LOGI(TAG, "Received new pos: [%i %i]", pos.ax1, pos.ax2);
+            ESP_LOGI(TAG, "Received new pos: [%lli %lli]", pos.ax1, pos.ax2);
             comm_sendSetPosResponse(pos.ax1, pos.ax2);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GET_POS) {
@@ -41,12 +41,16 @@ void comm_task() {
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GOTO) {
             MountMsg_Goto gotoData = msg.data.goTo;
-            ESP_LOGI(TAG, "Received goto msg: [%i %i] (time %llu)", gotoData.ax1, gotoData.ax2, gotoData.timeIncluded ? gotoData.time : 0);
+            ESP_LOGI(TAG, "Received goto msg: [%lli %lli] (time %llu)", gotoData.ax1, gotoData.ax2, gotoData.timeIncluded ? gotoData.time : 0);
             comm_sendGotoResponse(gotoData.ax1, gotoData.ax2, gotoData.timeIncluded ? &gotoData.time : NULL);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_STOP) {
             ESP_LOGI(TAG, "Received stop msg (instant: %hhi)", msg.data.stopInstant);
             comm_sendStopResponse(msg.data.stopInstant);
+        }
+        else if (msg.cmd == MOUNT_MSG_CMD_GET_CPR) {
+            ESP_LOGI(TAG, "Received cpr request");
+            comm_sendCprResponse(CPR_AX1, CPR_AX2);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_ERR_INVALID_CMD) {
             comm_sendError(MOUNT_ERR_CODE_INVALID_MSG, "Invalid command received");
