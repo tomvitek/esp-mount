@@ -138,6 +138,27 @@ bool receive_int32(int32_t* result, bool *endFlag) {
     return true;
 }
 
+/**
+ * @brief Receives a boolean from the communication uart port
+ * 
+ * The boolean is (in the protocol) represented as either "0" (false) or "1" (true)
+ * 
+ * @param result Read boolean will be save here
+ * @param endFlag When the last character read will be \n, sets this to true
+ * @return true Success
+ * @return false Fail
+ */
+bool receive_bool(bool* result, bool *endFlag) {
+    char boolStr[5];
+    size_t boolStrLen = receive_space_block(boolStr, sizeof(boolStr), endFlag);
+    
+    if (boolStrLen == 0)
+        return false;
+
+    *result = atoi(boolStr) > 0;
+    return true;
+}
+
 bool receive_end() {
     size_t available;
     uart_get_buffered_data_len(COMM_UART_PORT, &available);
@@ -233,6 +254,26 @@ MountMsg parseGotoMsg(bool *endFlag) {
     return msg;
 }
 
+MountMsg parseStopMsg(bool *endFlag) {
+    bool instantStop;
+    bool success = receive_bool(&instantStop, endFlag);
+    success &= *endFlag || receive_end();
+    
+    if (!success)
+        return makeMountMsg(MOUNT_MSG_CMD_ERR_INVALID_PARAM);
+
+    MountMsg_data data = {
+        .stopInstant = instantStop
+    };
+
+    MountMsg msg = {
+        .cmd = MOUNT_MSG_CMD_STOP,
+        .data = data
+    };
+
+    return msg;
+}
+
 MountMsg comm_getNext() {
     size_t available = 0;
     uart_get_buffered_data_len(COMM_UART_PORT, &available);
@@ -273,9 +314,13 @@ MountMsg comm_getNext() {
         else if (strcmp(cmdBuffer, CMD_STR_GOTO) == 0) {
             return parseGotoMsg(&endFlag);
         }
+        else if (strcmp(cmdBuffer, CMD_STR_STOP) == 0) {
+            return parseStopMsg(&endFlag);
+        }
         else {
             if (!endFlag)
                 receive_end();
+            ESP_LOGW(TAG, "Unknown command received");
             return makeMountMsg(MOUNT_MSG_CMD_ERR_UNKNOWN_CMD);
         }
     }
@@ -314,5 +359,11 @@ void comm_sendGotoResponse(int32_t ax1, int32_t ax2, uint64_t *time) {
         snprintf(msg, sizeof(msg), "+g %i %i %llu\n", ax1, ax2, *time);
     }
 
+    uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
+}
+
+void comm_sendStopResponse(bool instant) {
+    char msg[20];
+    snprintf(msg, sizeof(msg), "+s %hhi\n", instant);
     uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
 }

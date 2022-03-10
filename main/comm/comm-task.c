@@ -44,6 +44,10 @@ void comm_task() {
             ESP_LOGI(TAG, "Received goto msg: [%i %i] (time %llu)", gotoData.ax1, gotoData.ax2, gotoData.timeIncluded ? gotoData.time : 0);
             comm_sendGotoResponse(gotoData.ax1, gotoData.ax2, gotoData.timeIncluded ? &gotoData.time : NULL);
         }
+        else if (msg.cmd == MOUNT_MSG_CMD_STOP) {
+            ESP_LOGI(TAG, "Received stop msg (instant: %hhi)", msg.data.stopInstant);
+            comm_sendStopResponse(msg.data.stopInstant);
+        }
         else if (msg.cmd == MOUNT_MSG_CMD_ERR_INVALID_CMD) {
             comm_sendError(MOUNT_ERR_CODE_INVALID_MSG, "Invalid command received");
         }

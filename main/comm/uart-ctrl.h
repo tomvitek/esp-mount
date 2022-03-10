@@ -42,6 +42,12 @@ typedef union MountMsg_data {
     uint64_t time;
     MountMsg_SetPos setPos;
     MountMsg_Goto goTo;
+    /**
+     * @brief True if the stop should be instant
+     * 
+     * Associated with `MOUNT_MSG_CMD_STOP` command
+     */
+    bool stopInstant;
 } MountMsg_data;
 
 typedef struct MountMsg {
@@ -80,5 +86,12 @@ void comm_sendTimeResponse(uint64_t currentTime);
 void comm_sendSetPosResponse(int32_t ax1, int32_t ax2);
 void comm_sendGetPosResponse(int32_t ax1, int32_t ax2);
 void comm_sendGotoResponse(int32_t ax1, int32_t ax2, uint64_t *time);
+
+/**
+ * @brief Sends a response to the stop command
+ * 
+ * @param instant True if the stop was instant
+ */
+void comm_sendStopResponse(bool instant);
 
 #endif
