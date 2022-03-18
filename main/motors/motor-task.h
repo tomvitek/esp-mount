@@ -7,9 +7,10 @@
 #define MOTOR_DIR_PIN GPIO_NUM_26
 #define MOTOR_CFG1_PIN GPIO_NUM_27
 #define MOTOR_CFG2_PIN GPIO_NUM_14
-#define MOTOR_MAX_V 3000
-#define MOTOR_MAX_A 600
-#define MOTOR_A_POS_K 20.0f
+#define MOTOR_MAX_V 3000.0f
+#define MOTOR_MAX_A 1300.0f
+#define MOTOR_A_POS_K 50.0f
+#define MOTOR_BRAKE_A 700
 #define MOTOR_TSK_UPADTE_P 500000
 void motor_task(void* args);
 

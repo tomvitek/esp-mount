@@ -9,11 +9,21 @@ typedef enum motor_mode {
     GOTO
 } motor_mode_t;
 
-typedef struct Motor {
+typedef struct MotorConfig {
     int stepPin;
     int dirPin;
     int cfg1Pin;
     int cfg2Pin;
+
+    float maxA;
+    float maxV;
+    float brakeA;
+    float aPosK;
+    float gotoMinV;
+} motor_config_t;
+
+typedef struct Motor {
+    
     step_t pos;
     /**
      * @brief Target position
@@ -30,35 +40,47 @@ typedef struct Motor {
      * 
      */
     int64_t lastStepTime;
+    int64_t lastParamUpdateTime;
     /**
-     * @brief Time on the latest goto command (in microseconds)
+     * @brief Time on the latest track command (in microseconds)
      * 
      */
-    int64_t prevTime;
+    int64_t tStartTime;
     /**
-     * @brief Position on the latest goto command (in microseconds)
+     * @brief Position on the latest track command (in microseconds)
      * 
      */
-    step_t prevPos;
-    int64_t prevStepI;
+    step_t tStartPos;
+    int64_t tStartV;
     /**
      * @brief Current step interval (im microseconds)
      * 
      */
-    float stepI;
+    float v;
     float stepIOffsetCounter;
     int64_t lastStepIChangeTime;
     uint8_t dir;
-    int64_t maxA;
-    int64_t maxV;
-    float aPosK;
     motor_mode_t mode;
+    motor_config_t cfg;
 } Motor;
 
 typedef Motor* motor_t;
 
-motor_t motor_create(int stepPin, int dirPin, int cfg1Pin, int cfg2Pin, int64_t maxA, int64_t maxV, float aPosK);
-void motor_goto(motor_t motor, step_t targetPos, int64_t targetTime);
+motor_t motor_create(motor_config_t config);
+/**
+ * @brief Initiates motor tracking. During tracking, the motor will try to interpolate between startPos and endPos, with speed linearly 
+ * increasing/decreasing based on the speed on the start of tracking.
+ * 
+ * Ideally, the motor should be already on the startPos when the tracking starts.
+ * 
+ * @param motor Motor
+ * @param startPos Tracking starting position
+ * @param targetPos Tracking target postition
+ * @param startTime Time when the tracking starts
+ * @param targetTime Time when the motor should reach the target position
+ */
+void motor_track(motor_t motor, step_t startPos, step_t targetPos, int64_t startTime, int64_t targetTime);
+void motor_goto(motor_t motor, step_t targetPos);
 void motor_run(motor_t motor);
 void motor_destroy(motor_t motor);
 int64_t motor_getPosOffset(motor_t m, int64_t t);
