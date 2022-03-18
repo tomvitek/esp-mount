@@ -18,6 +18,7 @@
 #include <esp_int_wdt.h>
 #include "settings.h"
 #include "comm/comm-task.h"
+#include "motors/motor-task.h"
 
 #define DELAY_MS 1000
 #define LED_PIN GPIO_NUM_2
@@ -65,7 +66,7 @@ void blink2_task(void *args) {
         gpio_set_level(LED2_PIN, 0);
         uint64_t time;
         mount_getTime(&time);
-        ESP_LOGD("blink2", "current time: %llu", time);
+        //ESP_LOGD("blink2", "current time: %llu", time);
         configSTACK_DEPTH_TYPE depth = uxTaskGetStackHighWaterMark(NULL);
         //ESP_LOGD("blink2", "Remaining stack depth: %u", depth);
         if (blinkQueue != 0) {
@@ -80,7 +81,8 @@ void app_main() {
     ESP_LOGD("app_main", "hi");
     ESP_LOGD("app_main", "portTICK_PERIOD_MS: %i", portTICK_PERIOD_MS);
     mount_initSettings();
-    xTaskCreatePinnedToCore(blink_task, "blink", 10000, NULL, 12, NULL, CORE_MOTORS);
     xTaskCreatePinnedToCore(blink2_task, "blink2", 2500, NULL, tskIDLE_PRIORITY, NULL, 0);
     xTaskCreatePinnedToCore(comm_task, "commTask", 3000, NULL, tskIDLE_PRIORITY, NULL, 0);
+    vTaskDelay(10);
+    xTaskCreatePinnedToCore(motor_task, "motorTask", 5000, NULL, 12, NULL, CORE_MOTORS);
 }
