@@ -11,7 +11,7 @@
 #define MOTOR_MAX_A 1300.0f
 #define MOTOR_A_POS_K 50.0f
 #define MOTOR_BRAKE_A 700
-#define MOTOR_TSK_UPADTE_P 500000
+#define MOTOR_TSK_UPADTE_P 200000
 void motor_task(void* args);
 
 #endif

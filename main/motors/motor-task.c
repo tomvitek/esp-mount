@@ -36,11 +36,12 @@ void motor_task(void *args) {
         if (t2 > tLastUpdate + MOTOR_TSK_UPADTE_P) {
             tLastUpdate = t2;
             uint64_t posOffset = motor_getPosOffset(motor1, t1);
-            int64_t time = esp_timer_get_time();
-            ESP_LOGD(TAG, "M max exec t: %lli micros, posOffset: %lli, mode: %i, v: %f, p: %lli, tpos: %lli", maxExecT, posOffset, motor1->mode, motor1->v, motor1->pos, motor1->tPos);
-            //motor_track(motor1, 0, 10000, esp_timer_get_time(), time + 15000000);
-            //motor_track(motor1, 0, 1000, time, time + MOTOR_TSK_UPADTE_P);
-            //motor_goto(motor1, 1000);
+            time_t time;
+            int64_t motorT = esp_timer_get_time();
+            //ESP_LOGD(TAG, "M max exec t: %lli micros, posOffset: %lli, mode: %i, v: %f, p: %lli, tpos: %lli", maxExecT, posOffset, motor1->mode, motor1->v, motor1->pos, motor1->tPos);
+            maxExecT = 0;
+            mount_getTime(&time);
+            motor_track(motor1, time - MOTOR_TSK_UPADTE_P / 1000, time, motorT, motorT + MOTOR_TSK_UPADTE_P);
         }
     }
 
