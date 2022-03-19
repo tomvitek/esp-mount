@@ -34,26 +34,37 @@ inline float stepIToV(float stepI, uint8_t dir) {
     return (float)1000000.0f/stepI * (dir == 0 ? -1 : 1);
 }
 
+inline float getCorrectA(motor_t m, int64_t t) {
+    return 2 * ((float)(m->tPos - m->tStartPos) / (m->tTime - m->tStartTime) * 1e6 - m->tStartV)/(m->tTime - m->tStartTime) * 1e6;
+}
+
+inline float getCorrectV(motor_t m, int64_t t) {
+    return m->tStartV + getCorrectA(m, t) * (t - m->tStartTime) / 1e6;
+}
+
 int64_t motor_getPosOffset(motor_t m, int64_t t) {
     step_t x0 = m->tStartPos;
     step_t x1 = m->tPos;
     step_t x = m->pos;
-    int64_t t1 = m->tTime;
-    int64_t t0 = m->tStartTime;
+    int64_t tdt = m->tTime - m->tStartTime; // Tracking delta time
+    int64_t sdt = t - m->tStartTime; // Start delta time
     float v0 = m->tStartV;
-    float correctA = 2 * ((float)(x1 - x0) / (t1-t0) - v0)/(t1 - t0);
-    int64_t correctPos = x0 + (t - t0) * v0 + correctA * (t - t0) * (t - t0) / 2;
-    if (t > t1) {
+
+    float correctA = ((float)(x1 - x0) / tdt * 1e6 - v0)/tdt;
+    int64_t correctPos = x0 + (v0 * sdt + correctA * sdt * sdt) * 1e-6;
+
+    if (t > m->tTime) {
         correctPos = x1;
     }
-    if (t < t0) {
+    if (t < m->tStartTime) {
         correctPos = x0;
     }
-    //ESP_LOGD(TAG, "correct A: %f, correct pos: %lli, pos: %lli offset: %lli", correctA, correctPos, x, x - correctPos);
+    //ESP_LOGD(TAG, "correct A: %f, \tcorrect pos: %lli, \tpos: %lli\t offset: %lli,\tx0: %lli, \tv0: %f, \t(t-t0): %lli",
+    //    correctA * 1e6, correctPos, x, x - correctPos, x0, v0, t - t0);
     return x - correctPos;
 }
 
-inline void accelV(motor_t m, float a, int64_t dt) {
+void accelV(motor_t m, float a, int64_t dt) {
     m->v += a * dt / 1000000;
     if (abs(m->v) > m->cfg.maxV) {
         m->v = abs(m->v) / m->v * m->cfg.maxV;
@@ -69,12 +80,10 @@ inline void trackMAdjust(motor_t m, int64_t t, int64_t dt) {
     if (abs(a) > m->cfg.maxA)
         a = abs(a) / a * m->cfg.maxA;
 
-    //if (posOffset > 0) { // TODO: simplify this to not include abs above and directly compute positive/negative a
+    float correctV = getCorrectV(m, t);
+    if ((m->tPos - m->tStartPos > 0 && posOffset > 0 && correctV > m->v) || (m->tPos - m->tStartPos < 0 && posOffset < 0 && correctV < m->v))
+        a /= 5.0f;
     accelV(m, -a, dt);
-    //}
-    /*else if (posOffset < 0) {
-        accelV(m, a, dt);
-    }*/
 
     if (m->tTime < t)
         m->mode = GOTO;
@@ -137,7 +146,7 @@ motor_t motor_create(motor_config_t cfg) {
 
 void motor_run(motor_t m) {
     int64_t time = esp_timer_get_time();
-
+    bool paramsUpdated = false;
     if (m->lastParamUpdateTime + PARAM_UPDATE_P < time) {
         int64_t dt = time - m->lastParamUpdateTime;
         if (m->mode == TRACKING)
@@ -145,9 +154,10 @@ void motor_run(motor_t m) {
         else if (m->mode == GOTO)
             gotoMAdjust(m, time, dt);
         m->lastParamUpdateTime = time;
+        paramsUpdated = true;
     }
 
-    if (abs(m->v) > 0.0f && m->mode != STOP && time - m->lastStepTime > vToStepI(m->v)) {
+    if (!paramsUpdated && abs(m->v) > 0.0f && m->mode != STOP && time - m->lastStepTime > vToStepI(m->v)) {
         //ESP_LOGD(TAG, "pos: %lli", m->pos);
         makeStep(m);
         m->lastStepTime = time;
@@ -168,13 +178,11 @@ void motor_track(motor_t m, step_t startPos, step_t targetPos, int64_t startTime
     m->tTime = targetTime;
     m->tStartV = m->v;
     m->mode = TRACKING;
-    m->lastParamUpdateTime = esp_timer_get_time();
 }
 
 void motor_goto(motor_t m, step_t targetPos) {
     m->tPos = targetPos;
     m->mode = GOTO;
-    m->lastParamUpdateTime = esp_timer_get_time();
 }
 
 void motor_destroy(motor_t motor) {
