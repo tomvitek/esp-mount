@@ -185,7 +185,6 @@ motor_t motor_create(motor_config_t cfg) {
     motor->pos = 0;
     motor->mode = STOP;
     motor->v = 0.0f;
-    motor->stepIOffsetCounter = 0;
     motor->lastParamUpdateTime = 0;
     motor->multIdx = 0;
     return motor;
