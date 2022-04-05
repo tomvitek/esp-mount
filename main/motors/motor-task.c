@@ -18,13 +18,14 @@ void motor_task(void *args) {
         .maxV = MOTOR_MAX_V,
         .brakeA = MOTOR_BRAKE_A,
         .aPosK = MOTOR_A_POS_K,
-        .gotoMinV = 100.0f
+        .gotoMinV = MOTOR_GOTO_MIN_V,
+        .minStepI = MOTOR_MIN_STEP_I_MICROS
     };
     motor_t motor1 = motor_create(m1Cfg);
     ESP_LOGI(TAG, "Motor task started");
     int64_t timeGoal = esp_timer_get_time() + 15000000;
     motor_track(motor1, 500, 10000, esp_timer_get_time(), timeGoal);
-    //motor_goto(motor1, -20000);
+    //motor_goto(motor1, -200000);
     int64_t tLastUpdate = esp_timer_get_time();
     int64_t maxExecT = 0;
     for(;;) {
@@ -41,7 +42,7 @@ void motor_task(void *args) {
             //ESP_LOGD(TAG, "M max exec t: %lli micros, posOffset: %lli, mode: %i, v: %f, p: %lli, tpos: %lli", maxExecT, posOffset, motor1->mode, motor1->v, motor1->pos, motor1->tPos);
             maxExecT = 0;
             mount_getTime(&time);
-            motor_track(motor1, time - MOTOR_TSK_UPADTE_P / 1000, time, motorT, motorT + MOTOR_TSK_UPADTE_P);
+            motor_track(motor1, time * 5 - MOTOR_TSK_UPADTE_P / 1000 * 5, time * 5, motorT, motorT + MOTOR_TSK_UPADTE_P);
         }
     }
 

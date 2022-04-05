@@ -7,13 +7,16 @@
 #define TAG "motor-driver"
 #define PARAM_UPDATE_P 1000
 
+const uint8_t MULTIPLIERS[] = {1, 4, 8, 16};
+#define MULTIPLIERS_COUNT 4
+
 void makeStep(motor_t m) {
     gpio_set_level(m->cfg.stepPin, 1);
     gpio_set_level(m->cfg.stepPin, 0);
     if (m->dir == 1)
-        m->pos++;
+        m->pos += MULTIPLIERS[m->multIdx];
     else
-        m->pos--;
+        m->pos -= MULTIPLIERS[m->multIdx];
 }
 
 void updateDir(motor_t m, uint8_t dir) {
@@ -26,8 +29,38 @@ void updateDir(motor_t m, uint8_t dir) {
     }
 }
 
-inline float vToStepI(float v) {
-    return 1000000.0f/abs(v);
+void updateMultiplier(motor_t m, uint8_t multIdx) {
+    m->multIdx = multIdx;
+    switch (multIdx) {
+        case 0:
+            gpio_set_direction(m->cfg.cfg1Pin, GPIO_MODE_INPUT);
+            gpio_set_direction(m->cfg.cfg2Pin, GPIO_MODE_INPUT);
+            break;
+        
+        case 1:
+            gpio_set_direction(m->cfg.cfg1Pin, GPIO_MODE_OUTPUT);
+            gpio_set_direction(m->cfg.cfg2Pin, GPIO_MODE_INPUT);
+            gpio_set_level(m->cfg.cfg1Pin, 1);
+            break;
+
+        case 2:
+            gpio_set_direction(m->cfg.cfg1Pin, GPIO_MODE_INPUT);
+            gpio_set_direction(m->cfg.cfg2Pin, GPIO_MODE_OUTPUT);
+            gpio_set_level(m->cfg.cfg2Pin, 0);
+            break;
+
+        case 3:
+            gpio_set_direction(m->cfg.cfg1Pin, GPIO_MODE_OUTPUT);
+            gpio_set_direction(m->cfg.cfg2Pin, GPIO_MODE_OUTPUT);
+            gpio_set_level(m->cfg.cfg1Pin, 0);
+            gpio_set_level(m->cfg.cfg2Pin, 0);
+            break;
+    }
+    ESP_LOGI(TAG, "Switched to multiplier %i", multIdx);
+}
+
+inline float getStepI(motor_t m) {
+    return 1000000.0f/abs(m->v) * MULTIPLIERS[m->multIdx];
 }
 
 inline float stepIToV(float stepI, uint8_t dir) {
@@ -82,7 +115,7 @@ inline void trackMAdjust(motor_t m, int64_t t, int64_t dt) {
 
     float correctV = getCorrectV(m, t);
     if ((m->tPos - m->tStartPos > 0 && posOffset > 0 && correctV > m->v) || (m->tPos - m->tStartPos < 0 && posOffset < 0 && correctV < m->v))
-        a /= 5.0f;
+        a /= 10.0f;
     accelV(m, -a, dt);
 
     if (m->tTime < t)
@@ -125,6 +158,20 @@ inline void gotoMAdjust(motor_t m, int64_t t, int64_t dt) {
     }
 }
 
+void multiplierAdjust(motor_t m) {
+    float stepI = getStepI(m);
+    if (stepI < m->cfg.minStepI) {
+        if (m->multIdx == MULTIPLIERS_COUNT - 1) {
+            // Maximum multiplier reached, can do nothing
+            return;
+        }
+        updateMultiplier(m, m->multIdx + 1);
+    }
+    if (m->multIdx > 0 && stepI * MULTIPLIERS[m->multIdx - 1] / MULTIPLIERS[m->multIdx] > m->cfg.minStepI) {
+        updateMultiplier(m, m->multIdx - 1);
+    }
+}
+
 motor_t motor_create(motor_config_t cfg) {
     motor_t motor = malloc(sizeof(Motor));
 
@@ -140,7 +187,7 @@ motor_t motor_create(motor_config_t cfg) {
     motor->v = 0.0f;
     motor->stepIOffsetCounter = 0;
     motor->lastParamUpdateTime = 0;
-
+    motor->multIdx = 0;
     return motor;
 }
 
@@ -157,7 +204,7 @@ void motor_run(motor_t m) {
         paramsUpdated = true;
     }
 
-    if (!paramsUpdated && abs(m->v) > 0.0f && m->mode != STOP && time - m->lastStepTime > vToStepI(m->v)) {
+    if (!paramsUpdated && abs(m->v) > 0.0f && m->mode != STOP && time - m->lastStepTime > getStepI(m)) {
         //ESP_LOGD(TAG, "pos: %lli", m->pos);
         makeStep(m);
         m->lastStepTime = time;
@@ -168,6 +215,7 @@ void motor_run(motor_t m) {
         else if (m->mode == GOTO)
             gotoMAdjust(m, time, dt);
         m->lastParamUpdateTime = time;
+        multiplierAdjust(m);
     }
 }
 

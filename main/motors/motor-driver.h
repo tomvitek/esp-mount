@@ -20,6 +20,11 @@ typedef struct MotorConfig {
     float brakeA;
     float aPosK;
     float gotoMinV;
+    /**
+     * @brief Minimum step interval allowed. When this step interval is reached, motor driver will try to 
+     * switch to a lower step resolution (and therefore higher speed per step interval)
+     */
+    int32_t minStepI;
 } motor_config_t;
 
 typedef struct Motor {
@@ -61,6 +66,7 @@ typedef struct Motor {
     int64_t lastStepIChangeTime;
     uint8_t dir;
     motor_mode_t mode;
+    uint8_t multIdx;
     motor_config_t cfg;
 } Motor;
 
