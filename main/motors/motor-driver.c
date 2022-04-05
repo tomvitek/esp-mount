@@ -232,6 +232,17 @@ void motor_goto(motor_t m, step_t targetPos) {
     m->mode = GOTO;
 }
 
+void motor_stop(motor_t m, bool instant) {
+    if (instant) {
+        m->v = 0.0f;
+        m->mode = STOP;
+    }
+    else {
+        motor_goto(m, m->pos); // TODO: make the motor to stop and stay stopped, not to return to original position.
+        m->mode = GOTO;
+    }
+}
+
 void motor_destroy(motor_t motor) {
     gpio_set_direction(motor->cfg.stepPin, GPIO_MODE_INPUT);
     gpio_set_direction(motor->cfg.dirPin, GPIO_MODE_INPUT);

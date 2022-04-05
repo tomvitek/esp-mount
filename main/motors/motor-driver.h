@@ -6,7 +6,8 @@
 typedef enum motor_mode {
     STOP,
     TRACKING,
-    GOTO
+    GOTO,
+    BRAKING
 } motor_mode_t;
 
 /**
@@ -182,6 +183,16 @@ void motor_goto(motor_t motor, step_t targetPos);
  * @param motor Motor
  */
 void motor_run(motor_t motor);
+
+/**
+ * @brief Stops the motor
+ * 
+ * @param motor Motor
+ * @param instant True if the motor should not brake and just stop immediately. 
+ *  Not really healthy both the motor and the eqipment, do not use this often.
+ */
+void motor_stop(motor_t motor, bool instant);
+
 /**
  * @brief Frees all resources allocated by the motor.
  * 
