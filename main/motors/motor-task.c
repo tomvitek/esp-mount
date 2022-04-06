@@ -8,7 +8,11 @@
 #include <math.h>
 #define TAG "motor-task"
 
+//#define MEASURE_CYCLE_T
+
 void motor_task(void *args) {
+    QueueHandle_t motorCmdQueue = args;
+
     motor_config_t m1Cfg = {
         .stepPin = MOTOR_DEC_STEP_PIN,
         .dirPin = MOTOR_DEC_DIR_PIN,
@@ -21,7 +25,7 @@ void motor_task(void *args) {
         .gotoMinV = MOTOR_GOTO_MIN_V,
         .minStepI = MOTOR_MIN_STEP_I_MICROS
     };
-    motor_t mDec = motor_create(m1Cfg);
+    motor_t m1 = motor_create(m1Cfg);
 
     motor_config_t m2Cfg = {
         .stepPin = MOTOR_RA_STEP_PIN,
@@ -35,34 +39,54 @@ void motor_task(void *args) {
         .gotoMinV = MOTOR_GOTO_MIN_V,
         .minStepI = MOTOR_MIN_STEP_I_MICROS
     };
-    motor_t mRa = motor_create(m2Cfg);
+    motor_t m2 = motor_create(m2Cfg);
 
     ESP_LOGI(TAG, "Motor task started");
-    int64_t timeGoal = esp_timer_get_time() + 15000000;
-    //motor_track(mDec, 500, 10000, esp_timer_get_time(), timeGoal);
-    motor_track(mRa, 500, 10000, esp_timer_get_time(), timeGoal);
-    motor_goto(mDec, -300000);
     int64_t tLastUpdate = esp_timer_get_time();
+
+#ifdef MEASURE_CYCLE_T
     int64_t maxExecT = 0;
+#endif
     for(;;) {
+#ifdef MEASURE_CYCLE_T
         int64_t t1 = esp_timer_get_time();
-        motor_run(mDec);
-        motor_run(mRa);
+#endif
+        motor_run(m1);
+        motor_run(m2);
         int64_t t2 = esp_timer_get_time();
+#ifdef MEASURE_CYCLE_T
         if (maxExecT < t2 - t1)
             maxExecT = t2 - t1;
+#endif
         if (t2 > tLastUpdate + MOTOR_TSK_UPADTE_P) {
             tLastUpdate = t2;
-            uint64_t posOffset = motor_getPosOffset(mDec, t1);
             time_t time;
-            int64_t motorT = esp_timer_get_time();
-            //ESP_LOGD(TAG, "M max exec t: %lli micros, posOffset: %lli, mode: %i, v: %f, p: %lli, tpos: %lli", maxExecT, posOffset, mDec->mode, mDec->v, mDec->pos, mDec->tPos);
-            maxExecT = 0;
             mount_getTime(&time);
-            //motor_track(mDec, time * 5 - MOTOR_TSK_UPADTE_P / 1000 * 5, time * 5, motorT, motorT + MOTOR_TSK_UPADTE_P);
-            motor_track(mRa, time * 5 - MOTOR_TSK_UPADTE_P / 1000 * 5, time * 5, motorT, motorT + MOTOR_TSK_UPADTE_P);
+            mount_setPos(m1->pos, m2->pos);
+            MotorCmd cmd;
+            if (xQueueReceive(motorCmdQueue, &cmd, 0) == pdPASS) {
+                if (cmd.type == CMD_POSITION_UPDATE) {
+                    m1->pos = cmd.data.pos.ax1;
+                    m2->pos = cmd.data.pos.ax2;
+                    ESP_LOGD(TAG, "Position updated");
+                }
+                else if (cmd.type == CMD_GOTO) {
+                    motor_goto(m1, cmd.data.pos.ax1);
+                    motor_goto(m2, cmd.data.pos.ax2);
+                }
+                else if (cmd.type == CMD_STOP) {
+                    motor_stop(m1, cmd.data.instantStop);
+                    motor_stop(m2, cmd.data.instantStop);
+                }
+            }
+
+#ifdef MEASURE_CYCLE_T
+            uint64_t posOffset = motor_getPosOffset(m1, t2);
+            ESP_LOGD(TAG, "M max exec t: %lli micros, posOffset: %lli, mode: %i, v: %f, p: %lli, tpos: %lli", maxExecT, posOffset, m1->mode, m1->v, m1->pos, m1->tPos);
+            maxExecT = 0;
+#endif
         }
     }
 
-    motor_destroy(mDec);
+    motor_destroy(m1);
 }

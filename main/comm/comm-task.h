@@ -3,6 +3,6 @@
 
 #define COMM_TASK_PERIOD 50
 
-void comm_task();
+void comm_task(void *args);
 
 #endif

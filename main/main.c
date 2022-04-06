@@ -26,7 +26,8 @@
 #define CORE_MOTORS 1
 #define TAG "main"
 
-QueueHandle_t blinkQueue = 0;
+QueueHandle_t blinkQueue = NULL;
+QueueHandle_t motorCmdQueue = NULL;
 
 void blink_task(void *args) {
     blinkQueue = xQueueCreate(10, sizeof(uint32_t));
@@ -77,12 +78,13 @@ void blink2_task(void *args) {
 }
 
 void app_main() {
+    motorCmdQueue = xQueueCreate(10, sizeof(MotorCmd));
     esp_log_level_set("*", ESP_LOG_VERBOSE);
     ESP_LOGD("app_main", "hi");
     ESP_LOGD("app_main", "portTICK_PERIOD_MS: %i", portTICK_PERIOD_MS);
     mount_initSettings();
     xTaskCreatePinnedToCore(blink2_task, "blink2", 2500, NULL, tskIDLE_PRIORITY, NULL, 0);
-    xTaskCreatePinnedToCore(comm_task, "commTask", 3000, NULL, tskIDLE_PRIORITY, NULL, 0);
+    xTaskCreatePinnedToCore(comm_task, "commTask", 3000, motorCmdQueue, tskIDLE_PRIORITY, NULL, 0);
     vTaskDelay(10);
-    xTaskCreatePinnedToCore(motor_task, "motorTask", 5000, NULL, 12, NULL, CORE_MOTORS);
+    xTaskCreatePinnedToCore(motor_task, "motorTask", 5000, motorCmdQueue, 12, NULL, CORE_MOTORS);
 }

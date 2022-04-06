@@ -56,7 +56,7 @@ void updateMultiplier(motor_t m, uint8_t multIdx) {
             gpio_set_level(m->cfg.cfg2Pin, 0);
             break;
     }
-    ESP_LOGI(TAG, "Switched to multiplier %i", multIdx);
+    ESP_LOGD(TAG, "Switched to multiplier %i", multIdx);
 }
 
 inline float getStepI(motor_t m) {

@@ -5,12 +5,14 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "../config.h"
+#include "../motors/motor-task.h"
 #define TAG "comm-task"
 
-void comm_task() {
+void comm_task(void *args) {
     comm_init();
 
     TickType_t lastTicks = xTaskGetTickCount();
+    QueueHandle_t motorCmdQueue = args;
     for(;;) {
         vTaskDelayUntil(&lastTicks, COMM_TASK_PERIOD / portTICK_PERIOD_MS);
         MountMsg msg = comm_getNext();
@@ -27,6 +29,18 @@ void comm_task() {
             MountMsg_SetPos pos = msg.data.setPos;
             mount_setPos(pos.ax1, pos.ax2);
             ESP_LOGI(TAG, "Received new pos: [%lli %lli]", pos.ax1, pos.ax2);
+            MotorPosData data = {
+                .ax1 = pos.ax1,
+                .ax2 = pos.ax2
+            };
+
+            MotorCmd cmd = {
+                .type = CMD_POSITION_UPDATE,
+                .data = {
+                    .pos = data
+                }
+            };
+            xQueueSend(motorCmdQueue, &cmd, 0);
             comm_sendSetPosResponse(pos.ax1, pos.ax2);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GET_POS) {
@@ -42,10 +56,31 @@ void comm_task() {
         else if (msg.cmd == MOUNT_MSG_CMD_GOTO) {
             MountMsg_Goto gotoData = msg.data.goTo;
             ESP_LOGI(TAG, "Received goto msg: [%lli %lli] (time %llu)", gotoData.ax1, gotoData.ax2, gotoData.timeIncluded ? gotoData.time : 0);
+            MotorPosData data = {
+                .ax1 = msg.data.goTo.ax1,
+                .ax2 = msg.data.goTo.ax2
+            };
+
+            MotorCmd cmd = {
+                .type = CMD_GOTO,
+                .data = {
+                    .pos = data
+                }
+            };
+
+            xQueueSend(motorCmdQueue, &cmd, 0);
             comm_sendGotoResponse(gotoData.ax1, gotoData.ax2, gotoData.timeIncluded ? &gotoData.time : NULL);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_STOP) {
             ESP_LOGI(TAG, "Received stop msg (instant: %hhi)", msg.data.stopInstant);
+            MotorCmd cmd = {
+                .type = CMD_STOP,
+                .data = {
+                    .instantStop = msg.data.stopInstant
+                }
+            };
+
+            xQueueSend(motorCmdQueue, &cmd, 0);
             comm_sendStopResponse(msg.data.stopInstant);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GET_CPR) {
