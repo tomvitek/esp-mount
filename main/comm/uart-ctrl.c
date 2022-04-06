@@ -17,6 +17,13 @@
 #define CMD_STR_GET_CPR "gc"
 #define CMD_STR_GET_STATUS "gs"
 #define CMD_STR_GET_PROTOCOL_VERSION "gpv"
+#define CMD_STR_GET_TRACK_BUF_FREE_SPACE "gtbf"
+#define CMD_STR_GET_TRACK_BUF_SIZE "gtbs"
+#define CMD_STR_TRACK_BUF_CLEAR "tbc"
+#define CMD_STR_TRACK_BUF_ADD_POINT "tpa"
+#define CMD_STR_TRACKING_BEGIN "tb"
+#define CMD_STR_TRACKING_STOP "ts"
+
 #define UART_TIMEOUT_MS 10
 
 /**
@@ -227,21 +234,14 @@ MountMsg parseGotoMsg(bool *endFlag) {
     bool success = receive_int64(&posRa, endFlag);
     success &= receive_int64(&posDec, endFlag);
     
-    uint64_t time;
-    bool timeIncluded = !*endFlag;
-    if (! *endFlag)
-        success = receive_uint64(&time, endFlag);
-
-    success &= *endFlag || receive_end();
+    //success &= *endFlag || receive_end();
 
     if (!success)
         return makeMountMsg(MOUNT_MSG_CMD_ERR_INVALID_PARAM);
 
     MountMsg_Goto gotoData = {
         .ax1 = posRa,
-        .ax2 = posDec,
-        .time = time,
-        .timeIncluded = timeIncluded
+        .ax2 = posDec
     };
 
     MountMsg_data data = {
@@ -271,6 +271,32 @@ MountMsg parseStopMsg(bool *endFlag) {
     MountMsg msg = {
         .cmd = MOUNT_MSG_CMD_STOP,
         .data = data
+    };
+
+    return msg;
+}
+
+MountMsg parseTrackPointMsg(bool *endFlag) {
+    step_t ax1, ax2;
+    uint64_t time;
+    bool success = receive_int64(&ax1, endFlag);
+    success &= receive_int64(&ax2, endFlag);
+    success &= receive_uint64(&time, endFlag);
+
+    if (!success)
+        return makeMountMsg(MOUNT_MSG_CMD_ERR_INVALID_PARAM);
+
+    TrackPoint trackPoint = {
+        .ax1 = ax1,
+        .ax2 = ax2,
+        .time = time
+    };
+
+    MountMsg msg = {
+        .cmd = MOUNT_MSG_CMD_TRACK_ADD_POINT,
+        .data = {
+            .trackPoint = trackPoint
+        }
     };
 
     return msg;
@@ -328,6 +354,24 @@ MountMsg comm_getNext() {
         else if (strcmp(cmdBuffer, CMD_STR_STOP) == 0) {
             return parseStopMsg(&endFlag);
         }
+        else if (strcmp(cmdBuffer, CMD_STR_GET_TRACK_BUF_FREE_SPACE) == 0) {
+            return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_GET_TRACK_BUF_FREE_SPACE), &endFlag);
+        }
+        else if (strcmp(cmdBuffer, CMD_STR_GET_TRACK_BUF_SIZE) == 0) {
+            return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_GET_TRACK_BUF_SIZE), &endFlag);
+        }
+        else if (strcmp(cmdBuffer, CMD_STR_TRACK_BUF_CLEAR) == 0) {
+            return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_TRACK_BUF_CLEAR), &endFlag);
+        }
+        else if (strcmp(cmdBuffer, CMD_STR_TRACK_BUF_ADD_POINT) == 0) {
+            return parseTrackPointMsg(&endFlag);
+        }
+        else if (strcmp(cmdBuffer, CMD_STR_TRACKING_BEGIN) == 0) {
+            return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_TRACKING_BEGIN), &endFlag);
+        }
+        else if (strcmp(cmdBuffer, CMD_STR_TRACKING_STOP) == 0) {
+            return returnWithEFCheck(makeMountMsg(MOUNT_MSG_CMD_TRACKING_STOP), &endFlag);
+        }
         else {
             if (!endFlag)
                 receive_end();
@@ -361,14 +405,9 @@ void comm_sendError(int errCode, const char* msg) {
     uart_write_bytes(COMM_UART_PORT, msgBuffer, strlen(msgBuffer));
 }
 
-void comm_sendGotoResponse(step_t ax1, step_t ax2, uint64_t *time) {
+void comm_sendGotoResponse(step_t ax1, step_t ax2) {
     char msg[60];
-    if (time == NULL) {
-        snprintf(msg, sizeof(msg), "+g %lli %lli\n", ax1, ax2);
-    }
-    else {
-        snprintf(msg, sizeof(msg), "+g %lli %lli %llu\n", ax1, ax2, *time);
-    }
+    snprintf(msg, sizeof(msg), "+g %lli %lli\n", ax1, ax2);
 
     uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
 }
@@ -395,4 +434,40 @@ void comm_sendProtocolVersionResponse() {
     char msg[20];
     snprintf(msg, sizeof(msg), "+gpv %i\n", UART_CTRL_PROTOCOL_VERSION);
     uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
+}
+
+void comm_sendTrackBufferFreeSpaceResponse(uint32_t freeSpace) {
+    char msg[20];
+    snprintf(msg, sizeof(msg), "+%s %u\n", CMD_STR_GET_TRACK_BUF_FREE_SPACE, freeSpace);
+    uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
+}
+
+void comm_sendTrackBufferSizeResponse(uint32_t size) {
+    char msg[20];
+    snprintf(msg, sizeof(msg), "+%s %u\n", CMD_STR_GET_TRACK_BUF_SIZE, size);
+    uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
+}
+
+void sendEmptyResponse(char* cmdStr) {
+    char msg[10];
+    snprintf(msg, sizeof(msg), "+%s\n", cmdStr);
+    uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
+}
+
+void comm_sendTrackBufferClearResponse() {
+    sendEmptyResponse(CMD_STR_TRACK_BUF_CLEAR);
+}
+
+void comm_sendAddTrackPointResponse(uint8_t successCode) {
+    char msg[20];
+    snprintf(msg, sizeof(msg), "+%s %hu\n", CMD_STR_TRACK_BUF_ADD_POINT, successCode);
+    uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
+}
+
+void comm_sendTrackingBeginResponse() {
+    sendEmptyResponse(CMD_STR_TRACKING_BEGIN);
+}
+
+void comm_sendTrackingStopRespone() {
+    sendEmptyResponse(CMD_STR_TRACKING_STOP);
 }

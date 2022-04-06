@@ -55,7 +55,7 @@ void comm_task(void *args) {
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GOTO) {
             MountMsg_Goto gotoData = msg.data.goTo;
-            ESP_LOGI(TAG, "Received goto msg: [%lli %lli] (time %llu)", gotoData.ax1, gotoData.ax2, gotoData.timeIncluded ? gotoData.time : 0);
+            ESP_LOGI(TAG, "Received goto msg: [%lli %lli]", gotoData.ax1, gotoData.ax2);
             MotorPosData data = {
                 .ax1 = msg.data.goTo.ax1,
                 .ax2 = msg.data.goTo.ax2
@@ -69,7 +69,7 @@ void comm_task(void *args) {
             };
 
             xQueueSend(motorCmdQueue, &cmd, 0);
-            comm_sendGotoResponse(gotoData.ax1, gotoData.ax2, gotoData.timeIncluded ? &gotoData.time : NULL);
+            comm_sendGotoResponse(gotoData.ax1, gotoData.ax2);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_STOP) {
             ESP_LOGI(TAG, "Received stop msg (instant: %hhi)", msg.data.stopInstant);
@@ -94,6 +94,34 @@ void comm_task(void *args) {
         else if (msg.cmd == MOUNT_MSG_CMD_GET_PROTOCOL_VERSION) {
             ESP_LOGI(TAG, "Requested protocol version");
             comm_sendProtocolVersionResponse();
+        }
+        else if (msg.cmd == MOUNT_MSG_CMD_GET_TRACK_BUF_FREE_SPACE) {
+            ESP_LOGI(TAG, "Requested track buffer free space");
+            comm_sendTrackBufferFreeSpaceResponse(mount_getTrackBufferFreeSpace());
+        }
+        else if (msg.cmd == MOUNT_MSG_CMD_GET_TRACK_BUF_SIZE) {
+            ESP_LOGI(TAG, "Requested track buffer size");
+            comm_sendTrackBufferSizeResponse(mount_getTrackBufferSize());
+        }
+        else if (msg.cmd == MOUNT_MSG_CMD_TRACK_BUF_CLEAR) {
+            ESP_LOGI(TAG, "Requested track buffer clear");
+            mount_clearTrackBuffer();
+            comm_sendTrackBufferClearResponse();
+        }
+        else if (msg.cmd == MOUNT_MSG_CMD_TRACK_ADD_POINT) {
+            ESP_LOGI(TAG, "Received new track point [%lli %lli %llu]", msg.data.trackPoint.ax1, msg.data.trackPoint.ax2, msg.data.trackPoint.time);
+            uint8_t successCode = mount_pushTrackPoint(msg.data.trackPoint);
+            comm_sendAddTrackPointResponse(successCode);
+        }
+        else if (msg.cmd == MOUNT_MSG_CMD_TRACKING_BEGIN) {
+            ESP_LOGI(TAG, "Received track begin request");
+            // TODO
+            comm_sendTrackingBeginResponse();
+        }
+        else if (msg.cmd == MOUNT_MSG_CMD_TRACKING_STOP) {
+            ESP_LOGI(TAG, "Received track stop reqeust");
+            // TODO
+            comm_sendTrackingStopRespone();
         }
         else if (msg.cmd == MOUNT_MSG_CMD_ERR_INVALID_CMD) {
             comm_sendError(MOUNT_ERR_CODE_INVALID_MSG, "Invalid command received");

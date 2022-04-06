@@ -6,8 +6,11 @@
 
 #define TAG "settings"
 #define MAX_TIME_SEMAPHORE_DELAY 1000 // ticks
+#define TRACK_BUFFER_SIZE 6000
+
 SemaphoreHandle_t timeMutex;
 SemaphoreHandle_t posMutex;
+SemaphoreHandle_t tbMutex;
 
 struct MountSettings {
     uint64_t timeOffset;
@@ -15,9 +18,14 @@ struct MountSettings {
     int32_t posAx2;
 } settings;
 
+TrackPoint trackBuffer[TRACK_BUFFER_SIZE];
+uint32_t tbTailIdx = 0;
+uint32_t tbHeadIdx = 0;
+
 void mount_initSettings() {
     timeMutex = xSemaphoreCreateMutex();
     posMutex = xSemaphoreCreateMutex();
+    tbMutex = xSemaphoreCreateMutex();
     settings.timeOffset = 0;
     settings.posAx1 = 0;
     settings.posAx2 = 0;
@@ -82,4 +90,61 @@ bool mount_getPos(int32_t *ax1, int32_t *ax2) {
     }
 
     return true;
+}
+
+uint8_t mount_pushTrackPoint(TrackPoint tp) {
+    if (xSemaphoreTake(tbMutex, MAX_TIME_SEMAPHORE_DELAY) == pdTRUE) {
+        if (tbTailIdx == tbHeadIdx + 1 || (tbTailIdx == 0 && tbHeadIdx == TRACK_BUFFER_SIZE - 1)) {
+            return MOUNT_BUFFER_FULL;
+        }
+
+        trackBuffer[tbHeadIdx] = tp;
+        tbHeadIdx++;
+        if (tbHeadIdx == TRACK_BUFFER_SIZE)
+            tbHeadIdx = 0;
+        xSemaphoreGive(tbMutex);
+        return MOUNT_BUFFER_OK;
+    }
+    return MOUNT_MTX_ACQ_FAIL;
+}
+
+bool mount_pullTrackPoint(TrackPoint *trackPoint) {
+    if (xSemaphoreTake(tbMutex, MAX_TIME_SEMAPHORE_DELAY) == pdTRUE) {
+        if (tbTailIdx != tbHeadIdx) {
+            *trackPoint = trackBuffer[tbTailIdx];
+            
+            if (++tbTailIdx == TRACK_BUFFER_SIZE)
+                tbTailIdx = 0;
+            xSemaphoreGive(tbMutex);
+            return true;
+        }
+        
+        xSemaphoreGive(tbMutex);
+        return false;
+    }
+    else
+        return false;
+}
+
+uint32_t mount_getTrackBufferSize() {
+    return TRACK_BUFFER_SIZE;
+}
+
+uint32_t mount_getTrackBufferFreeSpace() {
+    xSemaphoreTake(tbMutex, MAX_TIME_SEMAPHORE_DELAY);
+    uint32_t result;
+    if (tbTailIdx <= tbHeadIdx)
+        result = TRACK_BUFFER_SIZE - tbHeadIdx + tbTailIdx;
+    else 
+        result = tbTailIdx - tbHeadIdx;
+    
+    xSemaphoreGive(tbMutex);
+    return result;
+}
+
+void mount_clearTrackBuffer() {
+    xSemaphoreTake(tbMutex, MAX_TIME_SEMAPHORE_DELAY);
+    tbTailIdx = 0;
+    tbHeadIdx = 0;
+    xSemaphoreGive(tbMutex);
 }

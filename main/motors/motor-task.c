@@ -60,7 +60,7 @@ void motor_task(void *args) {
 #endif
         if (t2 > tLastUpdate + MOTOR_TSK_UPADTE_P) {
             tLastUpdate = t2;
-            time_t time;
+            uint64_t time;
             mount_getTime(&time);
             mount_setPos(m1->pos, m2->pos);
             MotorCmd cmd;
