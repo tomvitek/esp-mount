@@ -8,6 +8,25 @@
 #include "../motors/motor-task.h"
 #define TAG "comm-task"
 
+mount_status_t mountStatusToStatusCode(MountStatus status) {
+    switch (status)
+    {
+    case MOUNT_STATUS_STOPPED:
+        return MOUNT_STATUS_CODE_STOPPED;
+    
+    case MOUNT_STATUS_BRAKING:
+        return MOUNT_STATUS_CODE_BRAKING;
+
+    case MOUNT_STATUS_GOTO:
+        return MOUNT_STATUS_CODE_GOTO;
+    
+    case MOUNT_STATUS_TRACKING:
+        return MOUNT_STATUS_CODE_TRACKING;
+    }
+
+    return -1;
+}
+
 void comm_task(void *args) {
     comm_init();
 
@@ -89,7 +108,8 @@ void comm_task(void *args) {
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GET_STATUS) {
             ESP_LOGI(TAG, "Received status request");
-            comm_sendStatusResponse(MOUNT_STATUS_CODE_STOPPED);
+            MountStatus status = mount_getStatus();
+            comm_sendStatusResponse(mountStatusToStatusCode(status));
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GET_PROTOCOL_VERSION) {
             ESP_LOGI(TAG, "Requested protocol version");
@@ -115,12 +135,18 @@ void comm_task(void *args) {
         }
         else if (msg.cmd == MOUNT_MSG_CMD_TRACKING_BEGIN) {
             ESP_LOGI(TAG, "Received track begin request");
-            // TODO
+            MotorCmd cmd = {
+                .type = CMD_TRACK_BEGIN
+            };
+            xQueueSend(motorCmdQueue, &cmd, 0);
             comm_sendTrackingBeginResponse();
         }
         else if (msg.cmd == MOUNT_MSG_CMD_TRACKING_STOP) {
             ESP_LOGI(TAG, "Received track stop reqeust");
-            // TODO
+            MotorCmd cmd = {
+                .type = CMD_TRACK_STOP
+            };
+            xQueueSend(motorCmdQueue, &cmd, 0);
             comm_sendTrackingStopRespone();
         }
         else if (msg.cmd == MOUNT_MSG_CMD_ERR_INVALID_CMD) {

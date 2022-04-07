@@ -1,6 +1,5 @@
 {
   "idf.port": "/dev/ttyUSB0",
-  "cmake.sourceDirectory": "${workspaceFolder}/.",
   "idf.adapterTargetName": "esp32",
   "files.associations": {
     "**/templates/*.html": "django-html, html",
@@ -11,5 +10,6 @@
   "idf.openOcdConfigs": [
     "interface/ftdi/esp32_devkitj_v1.cfg",
     "target/esp32.cfg"
-  ]
+  ],
+  "cmake.configureOnOpen": false
 }

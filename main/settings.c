@@ -9,13 +9,14 @@
 #define TRACK_BUFFER_SIZE 6000
 
 SemaphoreHandle_t timeMutex;
-SemaphoreHandle_t posMutex;
+SemaphoreHandle_t stateMtx;
 SemaphoreHandle_t tbMutex;
 
 struct MountSettings {
     uint64_t timeOffset;
-    int32_t posAx1;
-    int32_t posAx2;
+    step_t posAx1;
+    step_t posAx2;
+    MountStatus status;
 } settings;
 
 TrackPoint trackBuffer[TRACK_BUFFER_SIZE];
@@ -24,7 +25,7 @@ uint32_t tbHeadIdx = 0;
 
 void mount_initSettings() {
     timeMutex = xSemaphoreCreateMutex();
-    posMutex = xSemaphoreCreateMutex();
+    stateMtx = xSemaphoreCreateMutex();
     tbMutex = xSemaphoreCreateMutex();
     settings.timeOffset = 0;
     settings.posAx1 = 0;
@@ -62,11 +63,11 @@ bool mount_setTime(uint64_t realTime) {
     return true;
 }
 
-bool mount_setPos(int32_t ax1, int32_t ax2) {
-    if (xSemaphoreTake(posMutex, MAX_TIME_SEMAPHORE_DELAY) == pdTRUE) {
+bool mount_setPos(step_t ax1, step_t ax2) {
+    if (xSemaphoreTake(stateMtx, MAX_TIME_SEMAPHORE_DELAY) == pdTRUE) {
         settings.posAx1 = ax1;
         settings.posAx2 = ax2;
-        xSemaphoreGive(posMutex);
+        xSemaphoreGive(stateMtx);
         return true;
     }
     else {
@@ -77,11 +78,11 @@ bool mount_setPos(int32_t ax1, int32_t ax2) {
     return true;
 }
 
-bool mount_getPos(int32_t *ax1, int32_t *ax2) {
-    if (xSemaphoreTake(posMutex, MAX_TIME_SEMAPHORE_DELAY) == pdTRUE) {
+bool mount_getPos(step_t *ax1, step_t *ax2) {
+    if (xSemaphoreTake(stateMtx, MAX_TIME_SEMAPHORE_DELAY) == pdTRUE) {
         *ax1 = settings.posAx1;
         *ax2 = settings.posAx2;
-        xSemaphoreGive(posMutex);
+        xSemaphoreGive(stateMtx);
         return true;
     }
     else {
@@ -147,4 +148,19 @@ void mount_clearTrackBuffer() {
     tbTailIdx = 0;
     tbHeadIdx = 0;
     xSemaphoreGive(tbMutex);
+}
+
+MountStatus mount_getStatus() {
+    xSemaphoreTake(stateMtx, MAX_TIME_SEMAPHORE_DELAY);
+    MountStatus status = settings.status;
+    xSemaphoreGive(stateMtx);
+    return status;
+}
+
+void mount_setState(MountStatus status, step_t posAx1, step_t posAx2) {
+    xSemaphoreTake(stateMtx, MAX_TIME_SEMAPHORE_DELAY); // TODO: fix these mutexes to operate differently when the acqusition fails.
+    settings.status = status;
+    settings.posAx1 = posAx1;
+    settings.posAx2 = posAx2;
+    xSemaphoreGive(stateMtx);
 }

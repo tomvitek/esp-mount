@@ -20,7 +20,7 @@
 #define CMD_STR_GET_TRACK_BUF_FREE_SPACE "gtbf"
 #define CMD_STR_GET_TRACK_BUF_SIZE "gtbs"
 #define CMD_STR_TRACK_BUF_CLEAR "tbc"
-#define CMD_STR_TRACK_BUF_ADD_POINT "tpa"
+#define CMD_STR_TRACK_BUF_ADD_POINT "tp"
 #define CMD_STR_TRACKING_BEGIN "tb"
 #define CMD_STR_TRACKING_STOP "ts"
 

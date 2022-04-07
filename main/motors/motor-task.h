@@ -25,7 +25,9 @@
 typedef enum MotorCmdType {
     CMD_POSITION_UPDATE,
     CMD_GOTO,
-    CMD_STOP
+    CMD_STOP,
+    CMD_TRACK_BEGIN,
+    CMD_TRACK_STOP
 } MotorCmdType;
 
 typedef struct MotorPosData {
