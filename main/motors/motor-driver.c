@@ -72,7 +72,7 @@ inline float getCorrectA(motor_t m, int64_t t) {
 }
 
 inline float getCorrectV(motor_t m, int64_t t) {
-    return m->tStartV + getCorrectA(m, t) * (t - m->tStartTime) / 1e6;
+    return (float)(m->tPos - m->pos) / ((float)(m->tTime - t) / 1e6);
 }
 
 int64_t motor_getPosOffset(motor_t m, int64_t t) {
@@ -108,15 +108,12 @@ void accelV(motor_t m, float a, int64_t dt) {
 }
 
 inline void trackMAdjust(motor_t m, int64_t t, int64_t dt) {
-    int64_t posOffset = motor_getPosOffset(m, t);
-    float a = posOffset * m->cfg.aPosK;
-    if (abs(a) > m->cfg.maxA)
-        a = abs(a) / a * m->cfg.maxA;
-
     float correctV = getCorrectV(m, t);
-    if ((m->tPos - m->tStartPos > 0 && posOffset > 0 && correctV > m->v) || (m->tPos - m->tStartPos < 0 && posOffset < 0 && correctV < m->v))
-        a /= 10.0f;
-    accelV(m, -a, dt);
+
+    if (m->v > correctV)
+        accelV(m, -m->cfg.maxA, dt);
+    else if (m->v < correctV)
+        accelV(m, m->cfg.maxA, dt);
 
     if (m->tTime < t)
         m->mode = GOTO;
@@ -219,6 +216,7 @@ void motor_run(motor_t m) {
 }
 
 void motor_track(motor_t m, step_t startPos, step_t targetPos, int64_t startTime, int64_t targetTime) {
+
     m->tStartTime = startTime;
     m->tStartPos = startPos;
     m->tPos = targetPos;
