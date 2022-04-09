@@ -102,6 +102,7 @@ void comm_sendError(int errCode, const char* msg);
  * @param currentTime Current mount time, in milliseconds.
  */
 void comm_sendTimeResponse(uint64_t currentTime);
+void comm_sendGetTimeResponse(uint64_t currentTime);
 void comm_sendSetPosResponse(step_t ax1, step_t ax2);
 void comm_sendGetPosResponse(step_t ax1, step_t ax2);
 void comm_sendGotoResponse(step_t ax1, step_t ax2);

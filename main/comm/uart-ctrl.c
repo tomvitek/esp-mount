@@ -385,7 +385,13 @@ MountMsg comm_getNext() {
 
 void comm_sendTimeResponse(uint64_t currentTime) {
     char msg[30];
-    snprintf(msg, sizeof(msg), "+t %llu\n", currentTime);
+    snprintf(msg, sizeof(msg), "+%s %llu\n", CMD_STR_TIME_SYNC, currentTime);
+    uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
+}
+
+void comm_sendGetTimeResponse(uint64_t currentTime) {
+    char msg[30];
+    snprintf(msg, sizeof(msg), "+%s %llu\n", CMD_STR_GET_TIME, currentTime);
     uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
 }
 
@@ -396,7 +402,9 @@ void comm_sendSetPosResponse(step_t posAx1, step_t posAx2) {
 }
 
 void comm_sendGetPosResponse(step_t ax1, step_t ax2) {
-    comm_sendSetPosResponse(ax1, ax2);
+    char msg[30];
+    snprintf(msg, sizeof(msg), "+%s %lli %lli\n", CMD_STR_GET_POS, ax1, ax2);
+    uart_write_bytes(COMM_UART_PORT, msg, strlen(msg));
 }
 
 void comm_sendError(int errCode, const char* msg) {

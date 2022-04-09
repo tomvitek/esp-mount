@@ -63,14 +63,14 @@ void comm_task(void *args) {
             comm_sendSetPosResponse(pos.ax1, pos.ax2);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GET_POS) {
-            int32_t ax1, ax2;
+            step_t ax1, ax2;
             if (mount_getPos(&ax1, &ax2))
                 comm_sendGetPosResponse(ax1, ax2);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GET_TIME) {
             uint64_t time;
             mount_getTime(&time);
-            comm_sendTimeResponse(time);
+            comm_sendGetTimeResponse(time);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GOTO) {
             MountMsg_Goto gotoData = msg.data.goTo;
@@ -107,7 +107,6 @@ void comm_task(void *args) {
             comm_sendCprResponse(CPR_AX1, CPR_AX2);
         }
         else if (msg.cmd == MOUNT_MSG_CMD_GET_STATUS) {
-            ESP_LOGI(TAG, "Received status request");
             MountStatus status = mount_getStatus();
             comm_sendStatusResponse(mountStatusToStatusCode(status));
         }
@@ -129,7 +128,6 @@ void comm_task(void *args) {
             comm_sendTrackBufferClearResponse();
         }
         else if (msg.cmd == MOUNT_MSG_CMD_TRACK_ADD_POINT) {
-            ESP_LOGI(TAG, "Received new track point [%lli %lli %llu]", msg.data.trackPoint.ax1, msg.data.trackPoint.ax2, msg.data.trackPoint.time);
             uint8_t successCode = mount_pushTrackPoint(msg.data.trackPoint);
             comm_sendAddTrackPointResponse(successCode);
         }

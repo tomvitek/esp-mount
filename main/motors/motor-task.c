@@ -43,8 +43,8 @@ void updateTracking(uint64_t time) {
         TrackPoint newTrackPoint;
         bool trackPointAcquired = mount_pullTrackPoint(&newTrackPoint);
         if (!trackPointAcquired) {
-            motor_stop(m1, false);
-            motor_stop(m2, false);
+            motor_goto(m1, currentTrackPoint.ax1);
+            motor_goto(m2, currentTrackPoint.ax2);
             tracking = false;
             return;
         }
@@ -68,10 +68,12 @@ void processQueue(uint64_t time) {
         else if (cmd.type == CMD_GOTO) {
             motor_goto(m1, cmd.data.pos.ax1);
             motor_goto(m2, cmd.data.pos.ax2);
+            tracking = false;
         }
         else if (cmd.type == CMD_STOP) {
             motor_stop(m1, cmd.data.instantStop);
             motor_stop(m2, cmd.data.instantStop);
+            tracking = false;
         }
         else if (cmd.type == CMD_TRACK_BEGIN) {
             beginTracking(time);
