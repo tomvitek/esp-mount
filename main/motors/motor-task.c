@@ -150,6 +150,9 @@ void motor_task(void *args) {
             maxExecT = t2 - t1;
 #endif
         if (t2 > tLastUpdate + MOTOR_TSK_UPADTE_P) {
+            #ifdef MEASURE_CYCLE_T
+                int64_t update_t1 = esp_timer_get_time();
+            #endif
             tLastUpdate = t2;
             uint64_t time;
             mount_getTime(&time);
@@ -161,8 +164,10 @@ void motor_task(void *args) {
             }
             updateState();
 #ifdef MEASURE_CYCLE_T
+            int64_t update_t2 = esp_timer_get_time();
             uint64_t posOffset = motor_getPosOffset(m1, t2);
-            ESP_LOGD(TAG, "M max exec t: %lli micros, posOffset: %lli, mode: %i, v: %f, p: %lli, tpos: %lli", maxExecT, posOffset, m1->mode, m1->v, m1->pos, m1->tPos);
+            ESP_LOGD(TAG, "M max exec t: %lli micros, update t: %lli micros, posOffset: %lli, mode: %i, v: %f, p: %lli, tpos: %lli", 
+                maxExecT, update_t2 - update_t1, posOffset, m1->mode, m1->v, m1->pos, m1->tPos);
             maxExecT = 0;
 #endif
         }
