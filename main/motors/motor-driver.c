@@ -34,17 +34,21 @@ void updateMultiplier(motor_t m, uint8_t multIdx) {
     switch (multIdx) {
         case 0:
             gpio_set_direction(m->cfg.cfg1Pin, GPIO_MODE_INPUT);
+            gpio_set_pull_mode(m->cfg.cfg1Pin, GPIO_FLOATING);
             gpio_set_direction(m->cfg.cfg2Pin, GPIO_MODE_INPUT);
+            gpio_set_pull_mode(m->cfg.cfg2Pin, GPIO_FLOATING);
             break;
         
         case 1:
             gpio_set_direction(m->cfg.cfg1Pin, GPIO_MODE_OUTPUT);
             gpio_set_direction(m->cfg.cfg2Pin, GPIO_MODE_INPUT);
+            gpio_set_pull_mode(m->cfg.cfg2Pin, GPIO_FLOATING);
             gpio_set_level(m->cfg.cfg1Pin, 1);
             break;
 
         case 2:
             gpio_set_direction(m->cfg.cfg1Pin, GPIO_MODE_INPUT);
+            gpio_set_pull_mode(m->cfg.cfg1Pin, GPIO_FLOATING);
             gpio_set_direction(m->cfg.cfg2Pin, GPIO_MODE_OUTPUT);
             gpio_set_level(m->cfg.cfg2Pin, 0);
             break;

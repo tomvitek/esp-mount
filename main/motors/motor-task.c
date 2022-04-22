@@ -6,6 +6,8 @@
 #include <esp_timer.h>
 #include "motor-driver.h"
 #include <math.h>
+#include <esp_task_wdt.h>
+#include <esp_int_wdt.h>
 #define TAG "motor-task"
 
 //#define MEASURE_CYCLE_T
@@ -102,6 +104,9 @@ void updateState() {
 
 void motor_task(void *args) {
     motorCmdQueue = args;
+
+    TaskHandle_t idleTaskHandle = xTaskGetIdleTaskHandleForCPU(1);
+    esp_task_wdt_delete(idleTaskHandle);
 
     motor_config_t m1Cfg = {
         .stepPin = MOTOR_DEC_STEP_PIN,
