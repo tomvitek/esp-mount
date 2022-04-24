@@ -3,6 +3,7 @@
 #include <driver/gpio.h>
 #include <esp_timer.h>
 #include <esp_log.h>
+#include <math.h>
 
 #define TAG "motor-driver"
 #define PARAM_UPDATE_P 1000
@@ -96,8 +97,6 @@ int64_t motor_getPosOffset(motor_t m, int64_t t) {
     if (t < m->tStartTime) {
         correctPos = x0;
     }
-    //ESP_LOGD(TAG, "correct A: %f, \tcorrect pos: %lli, \tpos: %lli\t offset: %lli,\tx0: %lli, \tv0: %f, \t(t-t0): %lli",
-    //    correctA * 1e6, correctPos, x, x - correctPos, x0, v0, t - t0);
     return x - correctPos;
 }
 
@@ -114,9 +113,23 @@ void accelV(motor_t m, float a, int64_t dt) {
 inline void trackMAdjust(motor_t m, int64_t t, int64_t dt) {
     float correctV = getCorrectV(m, t);
 
-    if (m->v > correctV)
+    // Ideal speed (the average speed between startPos and endPos over endTime - startTime). 
+    // Maybe it would be better to replace this with speed of future track point, but seems to work fine as it is
+    float idealV = (float)(m->tPos - m->tStartPos) * 1e6 / (m->tTime - m->tStartTime) ;
+    // Time (in microseconds) the motor needs to brake from current speed to idealV
+    int64_t brake_time = fabs(m->v - idealV) / m->cfg.maxA * 1e6;
+    // Position the motor should have in the moment it stops braking to idealV
+    step_t ideal_x_in_bt = m->tStartPos + idealV * (t - m->tStartTime + brake_time) / 1e6;
+    // Distance the motor needs to brake before it reaches the target speed
+    step_t brake_dst = m->v * brake_time / 1e6 - 0.5e-12 * (m->v > 0 ? m->cfg.maxA : -m->cfg.maxA) * brake_time * brake_time;    
+    
+    if (m->v > idealV && brake_dst > (ideal_x_in_bt - m->pos)) // Braking, when the speed is too high (it would overrun the target position)
         accelV(m, -m->cfg.maxA, dt);
-    else if (m->v < correctV)
+    else if (m->v < idealV && brake_dst < (ideal_x_in_bt - m->pos)) // Same as above, but for the opossite direction
+        accelV(m, m->cfg.maxA, dt);
+    else if (m->v > correctV) // Speed up if speed is too low
+        accelV(m, -m->cfg.maxA, dt);
+    else if (m->v < correctV) // Speed down if speed is too high
         accelV(m, m->cfg.maxA, dt);
 
     if (m->tTime < t)
