@@ -32,9 +32,14 @@ void comm_task(void *args) {
 
     TickType_t lastTicks = xTaskGetTickCount();
     QueueHandle_t motorCmdQueue = args;
+    
     for(;;) {
-        vTaskDelayUntil(&lastTicks, COMM_TASK_PERIOD / portTICK_PERIOD_MS);
         MountMsg msg = comm_getNext();
+        if (msg.cmd == MOUNT_MSG_CMD_NONE) {
+            vTaskDelayUntil(&lastTicks, COMM_TASK_PERIOD / portTICK_PERIOD_MS);
+            int64_t t1 = esp_timer_get_time();
+            continue;
+        }
         
         if (msg.cmd == MOUNT_MSG_CMD_NONE) {}
         else if (msg.cmd == MOUNT_MSG_CMD_TIME_SYNC) {
